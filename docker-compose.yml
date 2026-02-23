@@ -1,0 +1,29 @@
+# Local MinIO + Redis for testing the File Service API.
+# Run: docker compose up -d
+# Then use .env with REDIS_HOST=localhost, MINIO_ENDPOINT=localhost (defaults in .env.example).
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console (optional)
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  minio_data: {}
