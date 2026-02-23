@@ -1,6 +1,6 @@
 /**
  * Validate opaque access token via Redis; attach req.user.
- * Reject if missing, not found, or expired.
+ * Reject if missing or not found. Expiry is handled by Redis TTL.
  */
 
 import { getRedisClient } from '../config/redis.js';
@@ -18,7 +18,8 @@ function sendServiceUnavailable(res, requestId) {
 
 /**
  * Extract Bearer token from Authorization header and validate with Redis.
- * Sets req.user = { userId, role, appId }. Rejects with 401 or 503 on failure.
+ * Redis value format: { id, role, appId }. Sets req.user = { userId, role, appId }.
+ * Rejects with 401 if token key does not exist or payload is invalid; 503 on Redis error.
  */
 export async function authMiddleware(req, res, next) {
   const requestId = req.id || '-';
@@ -52,17 +53,16 @@ export async function authMiddleware(req, res, next) {
     return sendUnauthorized(res, 'Invalid token payload');
   }
 
-  const { userId, role, appId, expiresAt } = payload;
-  if (!userId || appId === undefined) {
+  // Redis stores { id, role, appId }; id is the user identifier
+  const { id, role, appId } = payload;
+  if (id === undefined || id === null || appId === undefined) {
     return sendUnauthorized(res, 'Invalid token payload');
   }
 
-  const now = Date.now();
-  const expiresAtMs = typeof expiresAt === 'number' ? expiresAt : parseInt(expiresAt, 10);
-  if (Number.isNaN(expiresAtMs) || now >= expiresAtMs) {
-    return sendUnauthorized(res, 'Token expired');
-  }
-
-  req.user = { userId: String(userId), role: String(role ?? ''), appId: Number(appId) };
+  req.user = {
+    userId: Number(id),
+    role: String(role ?? ''),
+    appId: String(appId),
+  };
   next();
 }
