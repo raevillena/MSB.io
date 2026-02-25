@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: File Service API
+  description: |
+    API for obtaining presigned upload URLs and deleting files. Apps authenticate with a Bearer token (validated via Redis). Uploads go directly to storage via the presigned URL; public file access is served from the CDN.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: https://files.nbericmmsu.com
+    description: Production API (main file service)
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+    description: Liveness and readiness
+  - name: Files
+    description: Upload URL and delete (authenticated)
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service status. No authentication required. Use for load balancer or Kubernetes probes.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/files/upload-url:
+    post:
+      tags: [Files]
+      summary: Get presigned upload URL
+      description: |
+        Returns a time-limited presigned PUT URL. Your app should then upload the file **directly** to that URL (e.g. with fetch PUT or XHR). The URL expires in 120 seconds by default. Rate limited per client.
+      operationId: createUploadUrl
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, contentType]
+              properties:
+                fileName:
+                  type: string
+                  description: Original file name (path segments stripped; sanitized)
+                  example: profile-photo.png
+                contentType:
+                  type: string
+                  description: MIME type; must be in the allowed list
+                  example: image/png
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/gif
+                    - image/webp
+                    - application/pdf
+                    - text/plain
+                    - application/json
+                folder:
+                  type: string
+                  description: Optional single path segment (e.g. avatars, documents). Sanitized; no slashes or "..".
+                  example: avatars
+      responses:
+        '200':
+          description: Presigned URL and object key
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [uploadUrl, objectKey, expiresIn]
+                properties:
+                  uploadUrl:
+                    type: string
+                    format: uri
+                    description: PUT this URL to upload the file (same Content-Type as request)
+                  objectKey:
+                    type: string
+                    description: Storage key; use for delete or to build public CDN URL
+                    example: "12345/1739123456789_profile-photo.png"
+                  expiresIn:
+                    type: integer
+                    description: URL validity in seconds
+                    example: 120
+        '400':
+          description: Bad request (e.g. missing fileName/contentType, content type not allowed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: Missing or invalid Bearer token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many requests (upload-url rate limit)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Service unavailable (e.g. Redis or storage)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/files/{objectKey}:
+    delete:
+      tags: [Files]
+      summary: Delete a file
+      description: |
+        Deletes the object from storage. The `objectKey` must belong to the authenticated user (key format is `[folder/]userId/timestamp_fileName`). Pass the key **URI-encoded** (e.g. slashes as `%2F`).
+      operationId: deleteFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: objectKey
+          in: path
+          required: true
+          description: Object key (URI-encoded; e.g. userId%2F1739123456789_photo.png)
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Object deleted successfully
+        '400':
+          description: Invalid object key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Access denied (key does not belong to user)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Object not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Storage error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque
+      description: Opaque token stored in Redis under `access:<token>`. Payload must include userId, appId, expiresAt.
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message, code]
+      properties:
+        error:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Invalid or expired token
+        code:
+          type: integer
+          example: 401
