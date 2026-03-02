@@ -52,6 +52,32 @@ Server listens on `PORT` (default `3000`). Health: `GET http://localhost:3000/he
 
 ---
 
+## How to use the API
+
+### Context
+
+- **API base**: `https://files.nbericmmsu.com` (production) or `http://localhost:3000` (local).
+- **Public files**: Uploaded files are served from `https://cdn.nbericmmsu.com` (CDN). Use the `objectKey` from the API to build the public URL.
+- **Auth**: Your app must obtain a Bearer token from your auth system. The file service validates it via Redis; the token payload must include `userId`, `appId`, and `expiresAt`.
+
+### Steps to upload a file
+
+1. **Request a presigned URL** – `POST /api/files/upload-url` with `Authorization: Bearer <token>` and body `{ "fileName": "photo.png", "contentType": "image/png", "folder": "avatars" }`.
+2. **Upload the file** – Send a **PUT** request to the returned `uploadUrl` with the file as body and `Content-Type` set to the same `contentType`. The file goes directly to storage, not through the API.
+3. **Store the objectKey** – Save the returned `objectKey` in your DB. Use it to build the public URL (`https://cdn.nbericmmsu.com/<bucket>/<objectKey>`) or to delete the file later.
+
+### Steps to delete a file
+
+1. **Call delete** – `DELETE /api/files/{objectKey}` with `Authorization: Bearer <token>`. The `objectKey` must be **URI-encoded** (e.g. slashes as `%2F`).
+2. **Ownership** – The object must belong to the authenticated user (key format: `[folder/]userId/timestamp_fileName`). Otherwise you get `403 Access denied`.
+
+### Interactive docs
+
+- **Swagger UI**: `https://files.nbericmmsu.com/docs` (or `/docs` on your deployment).
+- **Full guide**: [docs/api.md](docs/api.md).
+
+---
+
 ## Environment
 
 | Variable | Required | Description |
