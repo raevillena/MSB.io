@@ -2,7 +2,7 @@
 
 Production-grade file upload API with **Redis** token validation and **MinIO** (S3-compatible) storage. Issues presigned upload URLs and supports authenticated delete by object key.
 
-**Documentation for app developers:** [docs/api.md](docs/api.md) – how to use the API (upload flow, public CDN URLs, delete). The API serves interactive docs (Swagger UI) at **`/docs`** and the OpenAPI spec at **`/docs/openapi.yaml`**.
+**Documentation for app developers:** [docs/api.md](docs/api.md) – how to use the API (upload flow, public CDN URLs, delete). **For AI / codegen:** [docs/ai-integration.md](docs/ai-integration.md) – canonical integration guide (endpoints, schemas, auth, steps). The API serves interactive docs (Swagger UI) at **`/docs`** and the OpenAPI spec at **`/docs/openapi.yaml`**.
 
 ---
 
