@@ -169,7 +169,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Opaque
-      description: Opaque token stored in Redis under `access:<token>`. Payload must include userId, appId, expiresAt.
+      description: Opaque token stored in Redis under `access:<token>`. Stored JSON must include `id` (user identifier) and `appId` (string, e.g. "8"); `role` is optional. Expiry is enforced via Redis key TTL; no `expiresAt` field is required.
 
   schemas:
     Error:

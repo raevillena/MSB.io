@@ -25,6 +25,10 @@ app.get('/health', (req, res) => {
 });
 
 // API docs: Swagger UI + OpenAPI spec (served from repo docs/)
+app.use(
+  '/docs/swagger-ui',
+  express.static(path.join(projectRoot, 'node_modules', 'swagger-ui-dist')),
+);
 app.use('/docs', express.static(path.join(projectRoot, 'docs')));
 app.get('/docs', (req, res) => res.redirect(302, '/docs/swagger.html'));
 

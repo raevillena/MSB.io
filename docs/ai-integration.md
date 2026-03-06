@@ -24,8 +24,10 @@ This document is for **AI agents and code generators** that need to implement a 
 Authorization: Bearer <opaque-token>
 ```
 
-- Token is validated server-side via Redis key `access:<token>`.
-- Stored value must be JSON with: `userId` (string), `appId` (number), `expiresAt` (number, Unix milliseconds). Optional: `role` (string).
+ - Token is validated server-side via Redis key `access:<token>`.
+- Stored value must be JSON like: `{"id": 13, "role": "user", "appId": "8"}`.
+- Required fields: `id` (user identifier) and `appId` (string, e.g. `"8"`). Optional: `role` (string).
+- Expiry is enforced via the Redis key TTL; no `expiresAt` field is required.
 - If missing/invalid/expired: HTTP 401, body `{ "error": true, "message": "<reason>", "code": 401 }`.
 
 ---

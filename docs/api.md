@@ -26,7 +26,9 @@ Authorization: Bearer <your-opaque-token>
 ```
 
 - The token is validated against Redis (`access:<token>`).
-- Stored payload must include: `userId` (string), `appId` (number), `expiresAt` (Unix ms). Optional: `role`.
+- Stored payload must be JSON like: `{"id": 13, "role": "user", "appId": "8"}`.
+- Required fields: `id` (user identifier) and `appId` (string, e.g. `"8"`). Optional: `role`.
+- Expiry is enforced via the Redis key TTL; no `expiresAt` field is required.
 - If the token is missing, invalid, or expired, the API returns `401` with `{ "error": true, "message": "...", "code": 401 }`.
 
 You obtain tokens from your own auth system; the file service only validates them.

@@ -17,6 +17,7 @@
     "express": "^4.21.0",
     "express-rate-limit": "^7.4.0",
     "helmet": "^8.0.0",
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.4.1",
+    "swagger-ui-dist": "^5.32.0"
   }
 }
