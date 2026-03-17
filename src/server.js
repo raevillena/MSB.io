@@ -4,11 +4,25 @@
 
 import app from './app.js';
 import config from './config/index.js';
-import { getRedisClient, closeRedis } from './config/redis.js';
+import { closeRedis } from './config/redis.js';
+import { loadCorsOriginsFromRedis } from './config/corsOrigins.js';
 
-const server = app.listen(config.PORT, () => {
-  console.log(`File service listening on port ${config.PORT}`);
-});
+let server;
+
+async function start() {
+  try {
+    await loadCorsOriginsFromRedis();
+  } catch (err) {
+    console.error(
+      '[CORS] Failed to load origins from Redis at startup; using env fallback only:',
+      err?.message || err,
+    );
+  }
+
+  server = app.listen(config.PORT, () => {
+    console.log(`File service listening on port ${config.PORT}`);
+  });
+}
 
 function shutdown(signal) {
   console.log(`${signal} received, shutting down gracefully`);
@@ -34,3 +48,5 @@ function shutdown(signal) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+start();

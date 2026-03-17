@@ -46,6 +46,15 @@ const getAllowedMimeTypes = () => {
   ];
 };
 
+const parseCorsOrigins = () => {
+  const raw = process.env.CORS_ALLOWED_ORIGINS;
+  if (!raw?.trim()) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
 const config = {
   PORT: parsePort(process.env.PORT, 3000),
   REDIS_HOST: process.env.REDIS_HOST.trim(),
@@ -69,6 +78,9 @@ const config = {
 
   /** Signed URL expiry in seconds */
   UPLOAD_URL_EXPIRES_IN: 120,
+
+  /** Comma-separated list of allowed CORS origins; empty = CORS disabled (no Origin allowed) */
+  CORS_ALLOWED_ORIGINS: parseCorsOrigins(),
 };
 
 export default config;
