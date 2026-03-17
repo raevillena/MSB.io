@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-api
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-api
+  template:
+    metadata:
+      labels:
+        app: file-api
+    spec:
+      containers:
+        - name: file-api
+          image: raevillena21/msb-file-api:1.0.2
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: file-api-config
+            - secretRef:
+                name: file-api-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20

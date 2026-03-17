@@ -3,4 +3,5 @@ node_modules/
 *.log
 .DS_Store
 
-k8s/
+secret.yaml
+configmap.yaml
