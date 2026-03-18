@@ -10,6 +10,20 @@ import * as fileService from '../services/fileService.js';
 
 const router = Router();
 
+/** GET /api/files/signed-url?objectKey=... - auth required; returns presigned GET URL for private objects */
+router.get('/signed-url', authMiddleware, async (req, res, next) => {
+  try {
+    const { objectKey } = req.query;
+    if (!objectKey) {
+      return res.status(400).json({ error: true, message: 'objectKey is required', code: 400 });
+    }
+    const result = await fileService.getSignedUrl(req.user, objectKey);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 /** POST /api/files/upload-url - rate limited, auth required */
 router.post(
   '/upload-url',

@@ -163,6 +163,60 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /api/files/signed-url:
+    get:
+      tags: [Files]
+      summary: Get signed GET URL for a private object
+      description: |
+        Returns a time-limited presigned GET URL for reading a private object. The bucket is derived from the authenticated user's `appId`; the client only provides the `objectKey` returned by the upload flow.
+      operationId: getSignedFileUrl
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: objectKey
+          in: query
+          required: true
+          description: Object key exactly as returned by the upload flow (e.g. `task-chat/13/1739123456789_file.png`)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Signed GET URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [signedUrl, expiresIn]
+                properties:
+                  signedUrl:
+                    type: string
+                    format: uri
+                    description: Time-limited GET URL to read the object
+                  expiresIn:
+                    type: integer
+                    description: URL validity in seconds
+                    example: 900
+        '400':
+          description: Missing or invalid objectKey
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: Missing or invalid Bearer token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Access denied (objectKey does not belong to authenticated user)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Storage error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
 components:
   securitySchemes:
     bearerAuth:

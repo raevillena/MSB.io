@@ -9,7 +9,10 @@ import {
   HeadBucketCommand,
   CreateBucketCommand,
   DeleteObjectCommand,
+  applyBucketPolicy,
 } from '../config/minio.js';
+import { getSignedUrl as presignGetObject } from '@aws-sdk/s3-request-presigner';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import config from '../config/index.js';
 import { sanitizeFileName, sanitizeFolder, buildObjectKey, objectKeyBelongsToUser } from '../utils/sanitize.js';
 import { createError } from '../middleware/errorHandler.js';
@@ -29,6 +32,7 @@ async function ensureBucketExists(bucket) {
       throw createError(503, 'Bucket not found; contact administrator', 503);
     }
     await s3Client.send(new CreateBucketCommand({ Bucket: bucket }));
+    await applyBucketPolicy(bucket);
   }
 }
 
@@ -69,6 +73,33 @@ export async function createUploadUrl(body, user) {
     objectKey,
     expiresIn,
   };
+}
+
+/**
+ * Generate a presigned GET URL for private object access.
+ * Bucket is derived from user.appId (never from client). objectKey must belong to user.
+ * @param {{ userId: string|number, appId: string }} user
+ * @param {string} objectKey
+ * @returns {{ signedUrl: string, expiresIn: number }}
+ */
+export async function getSignedUrl(user, objectKey) {
+  if (!objectKey || typeof objectKey !== 'string' || !objectKey.trim()) {
+    throw createError(400, 'objectKey is required', 400);
+  }
+  if (objectKey.includes('..') || objectKey.includes('\0')) {
+    throw createError(403, 'Invalid object key', 403);
+  }
+  if (!objectKeyBelongsToUser(objectKey, String(user.userId))) {
+    throw createError(403, 'Access denied', 403);
+  }
+
+  const bucket = getBucketForApp(user.appId);
+  const expiresIn = parseInt(process.env.SIGNED_URL_EXPIRY, 10) || 900;
+
+  const command = new GetObjectCommand({ Bucket: bucket, Key: objectKey });
+  const signedUrl = await presignGetObject(s3Client, command, { expiresIn });
+
+  return { signedUrl, expiresIn };
 }
 
 /**

@@ -2,7 +2,7 @@
  * MinIO / S3 client and presigner. App-exclusive buckets: one bucket per appId.
  */
 
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, PutBucketPolicyCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import config from './index.js';
@@ -44,6 +44,37 @@ export async function getPresignedPutUrl(bucket, key, contentType, expiresInSeco
     ContentType: contentType,
   });
   return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+}
+
+/**
+ * Apply bucket policy: public read only on avatars/*. Other prefixes stay private.
+ * Does not throw; logs and returns on failure (e.g. MinIO version may not support policy).
+ * @param {string} bucketName
+ */
+export async function applyBucketPolicy(bucketName) {
+  const policy = {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Effect: 'Allow',
+        Principal: '*',
+        Action: 's3:GetObject',
+        Resource: [`arn:aws:s3:::${bucketName}/avatars/*`],
+      },
+    ],
+  };
+
+  try {
+    await s3Client.send(
+      new PutBucketPolicyCommand({
+        Bucket: bucketName,
+        Policy: JSON.stringify(policy),
+      })
+    );
+    console.log(`[MinIO] Bucket policy applied to ${bucketName} (public read: avatars/*)`);
+  } catch (err) {
+    console.error(`[MinIO] Failed to apply bucket policy to ${bucketName}:`, err?.message || err);
+  }
 }
 
 export { HeadBucketCommand, CreateBucketCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
